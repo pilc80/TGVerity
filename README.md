@@ -332,6 +332,41 @@ Unsafe upstream changes block release.
 
 ---
 
+## macOS v0.1 Build
+
+Current v0.1 Mac track has two parallel parts:
+
+1. **TGVerity CLI harness** — buildable now; tests text relay packet framing and P2P framing.
+2. **Upstream Telegram Desktop build** — used as a clean one-to-one build proof before any surgical UI integration.
+
+CLI build:
+
+```text
+cmake -S . -B build -G Ninja
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+CLI smoke:
+
+```text
+build/tgverity relay-pack "hello relay"
+build/tgverity p2p-frame "hello p2p"
+```
+
+Telegram Desktop upstream build requires full Xcode, not only Command Line Tools:
+
+```text
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+git clone --recursive https://github.com/telegramdesktop/tdesktop.git
+cd tdesktop/Telegram
+./build/prepare/mac.sh
+./configure.sh -D TDESKTOP_API_ID=<id> -D TDESKTOP_API_HASH=<hash>
+open ../out/Telegram.xcodeproj
+```
+
+---
+
 ## Isolation Boundary
 
 Telegram-side code must access TGVerity only through a narrow bridge.
