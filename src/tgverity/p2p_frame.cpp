@@ -4,6 +4,15 @@
 #include <sstream>
 
 namespace tgverity {
+namespace {
+
+bool isHex(char c) {
+    return (c >= '0' && c <= '9')
+        || (c >= 'a' && c <= 'f')
+        || (c >= 'A' && c <= 'F');
+}
+
+} // namespace
 
 std::string encodeFrame(const std::string& payload) {
     std::ostringstream out;
@@ -17,11 +26,14 @@ std::optional<std::string> decodeFrame(const std::string& frame) {
     if (newline == std::string::npos) return std::nullopt;
     auto sizeText = frame.substr(5, newline - 5);
     if (sizeText.size() != 8) return std::nullopt;
+    for (char c : sizeText) {
+        if (!isHex(c)) return std::nullopt;
+    }
 
     std::size_t size = 0;
     std::istringstream in(sizeText);
     in >> std::hex >> size;
-    if (!in || frame.size() - newline - 1 != size) return std::nullopt;
+    if (!in || !in.eof() || frame.size() - newline - 1 != size) return std::nullopt;
     return frame.substr(newline + 1);
 }
 

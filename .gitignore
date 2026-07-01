@@ -1,5 +1,9 @@
 build/
+build-*/
 .DS_Store
 .tdlib/
 *.tdlibdb
 *.tdlibfiles
+icon-candidates/
+icon-system-vision/
+.claude/

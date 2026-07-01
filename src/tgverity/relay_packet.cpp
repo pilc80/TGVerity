@@ -58,7 +58,7 @@ std::optional<std::string> decodeSafe(const std::string& input) {
 
 std::string envelopeFor(const RelayPacket& packet) {
     return "protocol=tgverity\nversion=" + packet.version + "\ntype=" + packet.type +
-           "\npacket_id=" + packet.packetId + "\nbody=" + packet.body;
+           "\npacket_id=" + packet.packetId + "\nbody_safe=" + encodeSafe(packet.body);
 }
 
 std::optional<RelayPacket> parseEnvelope(const std::string& envelope) {
@@ -73,7 +73,11 @@ std::optional<RelayPacket> parseEnvelope(const std::string& envelope) {
         if (key == "version") packet.version = value;
         else if (key == "type") packet.type = value;
         else if (key == "packet_id") packet.packetId = value;
-        else if (key == "body") packet.body = value;
+        else if (key == "body_safe") {
+            auto decodedBody = decodeSafe(value);
+            if (!decodedBody) return std::nullopt;
+            packet.body = *decodedBody;
+        }
     }
     if (packet.version != "1" || packet.type.empty() || packet.packetId.empty()) {
         return std::nullopt;

@@ -49,6 +49,51 @@ index fc4a5690d3..41cb6cfada 100644
  endif()
  
  if (CMAKE_GENERATOR STREQUAL Xcode)
+diff --git a/Telegram/Resources/art/icon128.png b/Telegram/Resources/art/icon128.png
+index fc96863ef6..e058018003 100644
+Binary files a/Telegram/Resources/art/icon128.png and b/Telegram/Resources/art/icon128.png differ
+diff --git a/Telegram/Resources/art/icon128@2x.png b/Telegram/Resources/art/icon128@2x.png
+index 7943dd19df..70cede6db4 100644
+Binary files a/Telegram/Resources/art/icon128@2x.png and b/Telegram/Resources/art/icon128@2x.png differ
+diff --git a/Telegram/Resources/art/icon16.png b/Telegram/Resources/art/icon16.png
+index 561369d2b2..517128085e 100644
+Binary files a/Telegram/Resources/art/icon16.png and b/Telegram/Resources/art/icon16.png differ
+diff --git a/Telegram/Resources/art/icon16@2x.png b/Telegram/Resources/art/icon16@2x.png
+index f220a885bb..6c93a1fa37 100644
+Binary files a/Telegram/Resources/art/icon16@2x.png and b/Telegram/Resources/art/icon16@2x.png differ
+diff --git a/Telegram/Resources/art/icon256.png b/Telegram/Resources/art/icon256.png
+index 8c4abee16d..70cede6db4 100644
+Binary files a/Telegram/Resources/art/icon256.png and b/Telegram/Resources/art/icon256.png differ
+diff --git a/Telegram/Resources/art/icon256@2x.png b/Telegram/Resources/art/icon256@2x.png
+index d096c2bd0a..3f064d57b9 100644
+Binary files a/Telegram/Resources/art/icon256@2x.png and b/Telegram/Resources/art/icon256@2x.png differ
+diff --git a/Telegram/Resources/art/icon32.png b/Telegram/Resources/art/icon32.png
+index cff6368944..6c93a1fa37 100644
+Binary files a/Telegram/Resources/art/icon32.png and b/Telegram/Resources/art/icon32.png differ
+diff --git a/Telegram/Resources/art/icon32@2x.png b/Telegram/Resources/art/icon32@2x.png
+index 22b468746a..44796326cb 100644
+Binary files a/Telegram/Resources/art/icon32@2x.png and b/Telegram/Resources/art/icon32@2x.png differ
+diff --git a/Telegram/Resources/art/icon48.png b/Telegram/Resources/art/icon48.png
+index a8299b1821..30583cc03c 100644
+Binary files a/Telegram/Resources/art/icon48.png and b/Telegram/Resources/art/icon48.png differ
+diff --git a/Telegram/Resources/art/icon48@2x.png b/Telegram/Resources/art/icon48@2x.png
+index 69b69d86a5..a981f0bfbe 100644
+Binary files a/Telegram/Resources/art/icon48@2x.png and b/Telegram/Resources/art/icon48@2x.png differ
+diff --git a/Telegram/Resources/art/icon512.png b/Telegram/Resources/art/icon512.png
+index cdf2fdab5d..3f064d57b9 100644
+Binary files a/Telegram/Resources/art/icon512.png and b/Telegram/Resources/art/icon512.png differ
+diff --git a/Telegram/Resources/art/icon512@2x.png b/Telegram/Resources/art/icon512@2x.png
+index 7c1560fe63..79ba5fd8e2 100644
+Binary files a/Telegram/Resources/art/icon512@2x.png and b/Telegram/Resources/art/icon512@2x.png differ
+diff --git a/Telegram/Resources/art/icon64.png b/Telegram/Resources/art/icon64.png
+index b201e31ee0..44796326cb 100644
+Binary files a/Telegram/Resources/art/icon64.png and b/Telegram/Resources/art/icon64.png differ
+diff --git a/Telegram/Resources/art/icon64@2x.png b/Telegram/Resources/art/icon64@2x.png
+index 61924d136c..e058018003 100644
+Binary files a/Telegram/Resources/art/icon64@2x.png and b/Telegram/Resources/art/icon64@2x.png differ
+diff --git a/Telegram/Resources/art/icon_round512@2x.png b/Telegram/Resources/art/icon_round512@2x.png
+index 8f7b1098bd..79ba5fd8e2 100644
+Binary files a/Telegram/Resources/art/icon_round512@2x.png and b/Telegram/Resources/art/icon_round512@2x.png differ
 diff --git a/Telegram/Resources/langs/lang.strings b/Telegram/Resources/langs/lang.strings
 index 073cf6a978..4d13c896b4 100644
 --- a/Telegram/Resources/langs/lang.strings
@@ -160,6 +205,66 @@ index a30fb5ac6e..65790a548e 100644
  	<key>CFBundleIconFile</key>
  	<string>Icon.icns</string>
  	<key>CFBundleIconName</key>
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon128.png b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon128.png
+index 36d300faa2..e058018003 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon128.png and b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon128.png differ
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon128@2x.png b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon128@2x.png
+index cbb2420d32..70cede6db4 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon128@2x.png and b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon128@2x.png differ
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon16.png b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon16.png
+index 0ba4967982..517128085e 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon16.png and b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon16.png differ
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon16@2x.png b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon16@2x.png
+index 71066360e0..6c93a1fa37 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon16@2x.png and b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon16@2x.png differ
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon256.png b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon256.png
+index 38f1c1f4f4..70cede6db4 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon256.png and b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon256.png differ
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon256@2x.png b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon256@2x.png
+index 10d4b1b360..3f064d57b9 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon256@2x.png and b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon256@2x.png differ
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon32.png b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon32.png
+index ca84cd0e7c..6c93a1fa37 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon32.png and b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon32.png differ
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon32@2x.png b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon32@2x.png
+index 53f70ab9cd..44796326cb 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon32@2x.png and b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon32@2x.png differ
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon512.png b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon512.png
+index 7af9b445d0..3f064d57b9 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon512.png and b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon512.png differ
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon512@2x.png b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon512@2x.png
+index 708cfb8cc2..79ba5fd8e2 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon512@2x.png and b/Telegram/Telegram/Images.xcassets/Icon.appiconset/icon512@2x.png differ
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_128x128.png b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_128x128.png
+index 36d300faa2..e058018003 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_128x128.png and b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_128x128.png differ
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_128x128@2x.png b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_128x128@2x.png
+index cbb2420d32..70cede6db4 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_128x128@2x.png and b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_128x128@2x.png differ
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_16x16.png b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_16x16.png
+index 0ba4967982..517128085e 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_16x16.png and b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_16x16.png differ
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_16x16@2x.png b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_16x16@2x.png
+index 71066360e0..6c93a1fa37 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_16x16@2x.png and b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_16x16@2x.png differ
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_256x256.png b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_256x256.png
+index 38f1c1f4f4..70cede6db4 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_256x256.png and b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_256x256.png differ
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_256x256@2x.png b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_256x256@2x.png
+index 10d4b1b360..3f064d57b9 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_256x256@2x.png and b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_256x256@2x.png differ
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_32x32.png b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_32x32.png
+index ca84cd0e7c..6c93a1fa37 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_32x32.png and b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_32x32.png differ
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_32x32@2x.png b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_32x32@2x.png
+index 53f70ab9cd..44796326cb 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_32x32@2x.png and b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_32x32@2x.png differ
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_512x512.png b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_512x512.png
+index 7af9b445d0..3f064d57b9 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_512x512.png and b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_512x512.png differ
+diff --git a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_512x512@2x.png b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_512x512@2x.png
+index 708cfb8cc2..79ba5fd8e2 100644
+Binary files a/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_512x512@2x.png and b/Telegram/Telegram/Images.xcassets/Icon.iconset/icon_512x512@2x.png differ
 diff --git a/Telegram/build/prepare/prepare.py b/Telegram/build/prepare/prepare.py
 index 45e64be63f..c8020ecaa1 100644
 --- a/Telegram/build/prepare/prepare.py

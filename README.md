@@ -347,11 +347,41 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
+TDLib-enabled CLI build:
+
+```text
+brew install tdlib
+cmake -S . -B build-tdlib -G Ninja -DTGVERITY_USE_TDLIB=ON -DCMAKE_PREFIX_PATH=/opt/homebrew
+cmake --build build-tdlib
+ctest --test-dir build-tdlib --output-on-failure
+```
+
 CLI smoke:
 
 ```text
 build/tgverity relay-pack "hello relay"
 build/tgverity p2p-frame "hello p2p"
+build-tdlib/tgverity tdlib-version
+```
+
+Telegram CLI flow:
+
+```text
+export TGVERITY_API_ID=<id>
+export TGVERITY_API_HASH=<hash>
+export TGVERITY_PHONE=<phone>
+build-tdlib/tgverity login
+build-tdlib/tgverity chats
+build-tdlib/tgverity send-normal <chat_id> "normal hello"
+build-tdlib/tgverity send-relay <chat_id> "relay hello"
+build-tdlib/tgverity watch [chat_id]
+```
+
+P2P smoke:
+
+```text
+build-tdlib/tgverity p2p-listen 7777
+build-tdlib/tgverity p2p-connect 127.0.0.1:7777 "p2p hello"
 ```
 
 Telegram Desktop upstream build requires full Xcode, not only Command Line Tools:
