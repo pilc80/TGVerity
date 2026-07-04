@@ -9,6 +9,8 @@ namespace tgverity {
 namespace {
 
 constexpr std::string_view kPrefix = "TGVerity secure packet. Open with TGVerity to read.\nv1:";
+constexpr std::string_view kProtocol = "tgverity";
+constexpr std::string_view kVersion = "1";
 constexpr std::array<char, 32> kAlphabet = {
     'A','B','C','D','E','F','G','H','J','K','M','N','P','Q','R','S',
     'T','V','W','X','Y','Z','2','3','4','5','6','7','8','9','0','1'
@@ -57,38 +59,78 @@ std::optional<std::string> decodeSafe(const std::string& input) {
 }
 
 std::string envelopeFor(const RelayPacket& packet) {
-    return "protocol=tgverity\nversion=" + packet.version + "\ntype=" + packet.type +
-           "\npacket_id=" + packet.packetId + "\nbody_safe=" + encodeSafe(packet.body);
+    std::ostringstream out;
+    out << "protocol=" << kProtocol
+        << "\nversion=" << kVersion
+        << "\ncrypto_suite=" << packet.cryptoSuite
+        << "\ntype=" << packet.type
+        << "\npacket_id=" << packet.packetId
+        << "\nref_id=" << packet.refId
+        << "\nbody_safe=" << encodeSafe(packet.body);
+    return out.str();
 }
 
 std::optional<RelayPacket> parseEnvelope(const std::string& envelope) {
     RelayPacket packet;
+    bool haveProtocol = false, haveVersion = false, haveType = false, haveId = false, haveSuite = false;
     std::istringstream stream(envelope);
     std::string line;
     while (std::getline(stream, line)) {
-        auto pos = line.find('=');
+        const auto pos = line.find('=');
         if (pos == std::string::npos) continue;
-        auto key = line.substr(0, pos);
-        auto value = line.substr(pos + 1);
-        if (key == "version") packet.version = value;
-        else if (key == "type") packet.type = value;
-        else if (key == "packet_id") packet.packetId = value;
-        else if (key == "body_safe") {
-            auto decodedBody = decodeSafe(value);
-            if (!decodedBody) return std::nullopt;
-            packet.body = *decodedBody;
+        const auto key = line.substr(0, pos);
+        const auto value = line.substr(pos + 1);
+        if (key == "protocol") {
+            if (value == kProtocol) haveProtocol = true;
+        } else if (key == "version") {
+            if (value == kVersion) haveVersion = true;
+        } else if (key == "crypto_suite") {
+            try {
+                packet.cryptoSuite = static_cast<std::uint16_t>(std::stoul(value));
+                haveSuite = true;
+            } catch (...) {
+                return std::nullopt;
+            }
+        } else if (key == "type") {
+            packet.type = value;
+            haveType = true;
+        } else if (key == "packet_id") {
+            packet.packetId = value;
+            haveId = true;
+        } else if (key == "ref_id") {
+            packet.refId = value;
+        } else if (key == "body_safe") {
+            auto decoded = decodeSafe(value);
+            if (!decoded) return std::nullopt;
+            packet.body = *decoded;
         }
     }
-    if (packet.version != "1" || packet.type.empty() || packet.packetId.empty()) {
-        return std::nullopt;
-    }
+    if (!(haveProtocol && haveVersion && haveSuite && haveType && haveId)) return std::nullopt;
+    if (packet.type != "relay_text" && packet.type != "relay_ack") return std::nullopt;
+    if (packet.type == "relay_ack" && (packet.refId == "-" || packet.refId.empty())) return std::nullopt;
     return packet;
 }
 
 } // namespace
 
-RelayPacket RelayPacket::createText(std::string body) {
-    return RelayPacket{"1", "relay_text", "prototype-1", std::move(body)};
+RelayPacket RelayPacket::createText(Bytes body, std::string packetId) {
+    RelayPacket p;
+    p.cryptoSuite = static_cast<std::uint16_t>(CryptoSuite::Identity);
+    p.type = "relay_text";
+    p.packetId = std::move(packetId);
+    p.refId = "-";
+    p.body = std::move(body);
+    return p;
+}
+
+RelayPacket RelayPacket::createAck(std::string refId, std::string packetId) {
+    RelayPacket p;
+    p.cryptoSuite = static_cast<std::uint16_t>(CryptoSuite::Identity);
+    p.type = "relay_ack";
+    p.packetId = std::move(packetId);
+    p.refId = std::move(refId);
+    p.body = {};
+    return p;
 }
 
 std::string RelayPacket::toTelegramText() const {

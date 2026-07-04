@@ -1,6 +1,9 @@
 #include "app/config.h"
 #include "tg/td_client.h"
 #include "tgverity/bridge.h"
+#include "tgverity/crypto_provider.h"
+#include "tgverity/fake_telegram_client.h"
+#include "tgverity/log.h"
 #include "tgverity/p2p_frame.h"
 #include "tgverity/p2p_socket.h"
 #include "tgverity/relay_packet.h"
@@ -18,6 +21,7 @@ void usage() {
               << "  tdlib-version                  Print TDLib version / stub marker\n"
               << "  login                          Start TDLib login flow\n"
               << "  chats                          List recent chat IDs JSON\n"
+              << "  resolve <@username>            Resolve public username to chat JSON\n"
               << "  send-normal <chat> <text>      Send normal Telegram text\n"
               << "  send-relay <chat> <text>       Send visible TGVerity relay packet\n"
               << "  watch [chat]                   Print TDLib updates and parse relay packets\n"
@@ -25,7 +29,8 @@ void usage() {
               << "  relay-parse <packet>           Parse visible Telegram text relay packet\n"
               << "  p2p-frame <text>               Build prototype P2P frame\n"
               << "  p2p-listen <port>              Accept one framed P2P message\n"
-              << "  p2p-connect <host:port> <text> Send one framed P2P message\n";
+              << "  p2p-connect <host:port> <text> Send one framed P2P message\n"
+              << "  selftest                       End-to-end bridge demo via FakeTelegramClient + logging\n";
 }
 
 std::optional<std::int64_t> parseChatId(const char* value) {
@@ -61,13 +66,29 @@ int main(int argc, char** argv) {
     }
 
     if (command == "login") {
+        auto config = tgverity::AppConfig::fromEnvironmentOrPrompt();
+        if (!config.hasTelegramCredentials()) {
+            std::cerr << "Set TGVERITY_API_ID and TGVERITY_API_HASH, or enter them when prompted.\n";
+            return 2;
+        }
         tgverity::TdClient client;
-        return client.login(tgverity::AppConfig::fromEnvironment());
+        return client.login(config);
     }
 
     if (command == "chats") {
+        auto config = tgverity::AppConfig::fromEnvironment();
         tgverity::TdClient client;
-        return client.chats();
+        return client.chats(config);
+    }
+
+    if (command == "resolve") {
+        if (argc < 3) {
+            std::cerr << "resolve requires <@username>\n";
+            return 2;
+        }
+        auto config = tgverity::AppConfig::fromEnvironment();
+        tgverity::TdClient client;
+        return client.resolve(config, argv[2]);
     }
 
     if (command == "send-normal" || command == "send-relay") {
@@ -82,10 +103,11 @@ int main(int argc, char** argv) {
         }
         auto text = std::string(argv[3]);
         if (command == "send-relay") {
-            text = tgverity::Bridge().buildRelayTelegramText(text).text;
+            text = tgverity::RelayPacket::createText(text, "cli-send").toTelegramText();
         }
+        auto config = tgverity::AppConfig::fromEnvironment();
         tgverity::TdClient client;
-        return client.sendText(*chatId, text);
+        return client.sendText(config, *chatId, text);
     }
 
     if (command == "watch") {
@@ -97,8 +119,9 @@ int main(int argc, char** argv) {
                 return 2;
             }
         }
+        auto config = tgverity::AppConfig::fromEnvironment();
         tgverity::TdClient client;
-        return client.watch(chatId);
+        return client.watch(config, chatId);
     }
 
     if (command == "relay-pack") {
@@ -106,7 +129,7 @@ int main(int argc, char** argv) {
             std::cerr << "relay-pack requires text\n";
             return 2;
         }
-        std::cout << tgverity::RelayPacket::createText(argv[2]).toTelegramText() << "\n";
+        std::cout << tgverity::RelayPacket::createText(argv[2], "cli-pack").toTelegramText() << "\n";
         return 0;
     }
 
@@ -120,7 +143,8 @@ int main(int argc, char** argv) {
             std::cerr << "not a valid TGVerity packet\n";
             return 1;
         }
-        std::cout << "type=" << parsed->type << " body=" << parsed->body << "\n";
+        std::cout << "type=" << parsed->type << " packet_id=" << parsed->packetId
+                  << " ref_id=" << parsed->refId << " body=" << parsed->body << "\n";
         return 0;
     }
 
@@ -157,6 +181,31 @@ int main(int argc, char** argv) {
             return 2;
         }
         return tgverity::runP2PConnect(*endpoint, argv[3]);
+    }
+
+    if (command == "selftest") {
+        tgverity::Logger::instance().setLevel(tgverity::LogLevel::Debug);
+        tgverity::Logger::instance().setRedact(true);
+        tgverity::IdentityCryptoProvider crypto;
+        tgverity::FakeTelegramClient alice;
+        tgverity::FakeTelegramClient bob;
+        alice.setPeerDeliverer([&](const std::string& c, const std::string& s, const std::string& t) {
+            bob.receiveFromWire(c, s, t);
+        });
+        bob.setPeerDeliverer([&](const std::string& c, const std::string& s, const std::string& t) {
+            alice.receiveFromWire(c, s, t);
+        });
+        tgverity::Bridge aBridge(crypto, alice);
+        tgverity::Bridge bBridge(crypto, bob);
+        const auto pid = aBridge.send("chat1", "hello v0.2");
+        std::cout << "alice sent packetId=" << pid << "\n";
+        const auto* ob = aBridge.outbound(pid);
+        std::cout << "alice outbound status=" << (ob ? tgverity::statusName(ob->status) : "null") << "\n";
+        std::cout << "bob inbound count=" << bBridge.inboundCount() << "\n";
+        const auto* im = bBridge.inbound(pid);
+        std::cout << "bob inbound plaintext=" << (im ? im->plaintext : std::string("null")) << "\n";
+        std::cout << "selftest OK\n";
+        return 0;
     }
 
     usage();

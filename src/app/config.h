@@ -12,6 +12,7 @@ struct AppConfig {
 
     [[nodiscard]] bool hasTelegramCredentials() const;
     [[nodiscard]] static AppConfig fromEnvironment();
+    [[nodiscard]] static AppConfig fromEnvironmentOrPrompt();
 };
 
 } // namespace tgverity

@@ -1,6 +1,6 @@
 #include "tg/td_client.h"
 
-#include "tgverity/bridge.h"
+#include "tgverity/relay_packet.h"
 
 #ifdef TGVERITY_USE_TDLIB
 #include "td/telegram/td_json_client.h"
@@ -9,6 +9,7 @@
 #include <chrono>
 #include <iostream>
 #include <sstream>
+#include <string>
 #include <thread>
 
 namespace tgverity {
@@ -30,6 +31,27 @@ std::string jsonEscape(const std::string& value) {
     return out;
 }
 
+std::string jsonUnescape(const std::string& value) {
+    std::string out;
+    out.reserve(value.size());
+    for (std::size_t i = 0; i < value.size(); ++i) {
+        if (value[i] != '\\' || i + 1 >= value.size()) {
+            out.push_back(value[i]);
+            continue;
+        }
+        const auto escaped = value[++i];
+        switch (escaped) {
+        case 'n': out.push_back('\n'); break;
+        case 'r': out.push_back('\r'); break;
+        case 't': out.push_back('\t'); break;
+        case '\\': out.push_back('\\'); break;
+        case '"': out.push_back('"'); break;
+        default: out.push_back(escaped); break;
+        }
+    }
+    return out;
+}
+
 bool contains(const std::string& haystack, const std::string& needle) {
     return haystack.find(needle) != std::string::npos;
 }
@@ -46,6 +68,7 @@ std::string textMessageJson(std::int64_t chatId, const std::string& text) {
 
 TdClient::TdClient() {
 #ifdef TGVERITY_USE_TDLIB
+    td_json_client_execute(nullptr, R"({"@type":"setLogVerbosityLevel","new_verbosity_level":0})");
     _client = td_json_client_create();
 #endif
 }
@@ -101,6 +124,10 @@ std::optional<std::string> TdClient::receive(double timeoutSeconds) {
 }
 
 int TdClient::login(const AppConfig& config) {
+    return ensureReady(config, true);
+}
+
+int TdClient::ensureReady(const AppConfig& config, bool allowInteractiveAuth) {
     if (!config.hasTelegramCredentials()) {
         std::cerr << "Set TGVERITY_API_ID and TGVERITY_API_HASH. Optional: TGVERITY_PHONE.\n";
         return 2;
@@ -109,9 +136,9 @@ int TdClient::login(const AppConfig& config) {
     const auto baseDir = jsonEscape(config.tdlibDir);
     const auto params = std::string(R"({"@type":"setTdlibParameters","use_test_dc":false,"database_directory":")") + baseDir +
         R"(/db","files_directory":")" + baseDir +
-        R"(/files","use_file_database":true,"use_chat_info_database":true,"use_message_database":true,"use_secret_chats":false,"api_id":)" +
+        R"(/files","database_encryption_key":"","use_file_database":true,"use_chat_info_database":true,"use_message_database":true,"use_secret_chats":false,"api_id":)" +
         config.apiId + R"(,"api_hash":")" + jsonEscape(config.apiHash) +
-        R"(","system_language_code":"en","device_model":"TGVerity CLI","system_version":"macOS","application_version":"0.1","@extra":"set-params"})";
+        R"(","system_language_code":"en","device_model":"TGVerity CLI","system_version":"macOS","application_version":"0.2","@extra":"set-params"})";
 
     std::cout << "Waiting for TDLib authorization state...\n";
     for (;;) {
@@ -123,32 +150,55 @@ int TdClient::login(const AppConfig& config) {
         } else if (contains(*event, "authorizationStateWaitEncryptionKey")) {
             send(R"({"@type":"checkDatabaseEncryptionKey","encryption_key":"","@extra":"db-key"})");
         } else if (contains(*event, "authorizationStateWaitPhoneNumber")) {
+            if (!allowInteractiveAuth) {
+                std::cerr << "TDLib authorization is not complete. Run login first.\n";
+                return 2;
+            }
             auto phone = config.phone;
             if (phone.empty()) {
                 std::cout << "Phone: ";
-                std::getline(std::cin, phone);
+                if (!std::getline(std::cin, phone) || phone.empty()) {
+                    std::cerr << "Phone is required.\n";
+                    return 2;
+                }
             }
             send(std::string(R"({"@type":"setAuthenticationPhoneNumber","phone_number":")") + jsonEscape(phone) + R"(","@extra":"phone"})");
         } else if (contains(*event, "authorizationStateWaitCode")) {
+            if (!allowInteractiveAuth) {
+                std::cerr << "TDLib authorization code is required. Run login first.\n";
+                return 2;
+            }
             std::string code;
             std::cout << "Code: ";
-            std::getline(std::cin, code);
+            if (!std::getline(std::cin, code) || code.empty()) {
+                std::cerr << "Authentication code is required. Run login interactively.\n";
+                return 2;
+            }
             send(std::string(R"({"@type":"checkAuthenticationCode","code":")") + jsonEscape(code) + R"(","@extra":"code"})");
         } else if (contains(*event, "authorizationStateWaitPassword")) {
+            if (!allowInteractiveAuth) {
+                std::cerr << "TDLib 2FA password is required. Run login first.\n";
+                return 2;
+            }
             std::string password;
             std::cout << "2FA password: ";
-            std::getline(std::cin, password);
+            if (!std::getline(std::cin, password) || password.empty()) {
+                std::cerr << "2FA password is required. Run login interactively.\n";
+                return 2;
+            }
             send(std::string(R"({"@type":"checkAuthenticationPassword","password":")") + jsonEscape(password) + R"(","@extra":"password"})");
         } else if (contains(*event, "authorizationStateReady")) {
             std::cout << "TDLib authorization ready\n";
             return 0;
         } else if (contains(*event, R"("@type":"error")")) {
-            std::cerr << "TDLib error during login\n";
+            std::cerr << "TDLib error during authorization\n";
+            return 1;
         }
     }
 }
 
-int TdClient::chats() {
+int TdClient::chats(const AppConfig& config) {
+    if (const auto ready = ensureReady(config, false); ready != 0) return ready;
     send(R"({"@type":"getChats","chat_list":{"@type":"chatListMain"},"limit":50,"@extra":"get-chats"})");
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
     while (std::chrono::steady_clock::now() < deadline) {
@@ -162,20 +212,42 @@ int TdClient::chats() {
     return 1;
 }
 
-int TdClient::sendText(std::int64_t chatId, const std::string& text) {
-    send(textMessageJson(chatId, text));
+int TdClient::resolve(const AppConfig& config, const std::string& username) {
+    if (const auto ready = ensureReady(config, false); ready != 0) return ready;
+    auto normalized = username;
+    if (!normalized.empty() && normalized.front() == '@') {
+        normalized.erase(0, 1);
+    }
+    send(std::string(R"({"@type":"searchPublicChat","username":")") + jsonEscape(normalized) + R"(","@extra":"resolve"})");
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
     while (std::chrono::steady_clock::now() < deadline) {
         auto event = receive(1.0);
         if (!event) continue;
         std::cout << *event << "\n";
-        if (contains(*event, R"("@extra":"send")")) return 0;
+        if (contains(*event, R"("@extra":"resolve")")) {
+            return contains(*event, R"("@type":"error")") ? 1 : 0;
+        }
     }
     return 1;
 }
 
-int TdClient::watch(std::optional<std::int64_t> chatId) {
-    Bridge bridge;
+int TdClient::sendText(const AppConfig& config, std::int64_t chatId, const std::string& text) {
+    if (const auto ready = ensureReady(config, false); ready != 0) return ready;
+    send(textMessageJson(chatId, text));
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    while (std::chrono::steady_clock::now() < deadline) {
+        auto event = receive(1.0);
+        if (!event) continue;
+        std::cout << *event << "\n";
+        if (contains(*event, R"("@type":"updateMessageSendSucceeded")")) return 0;
+        if (contains(*event, R"("@type":"updateMessageSendFailed")") || contains(*event, R"("@type":"error")")) return 1;
+    }
+    std::cerr << "Timed out waiting for Telegram send confirmation\n";
+    return 1;
+}
+
+int TdClient::watch(const AppConfig& config, std::optional<std::int64_t> chatId) {
+    if (const auto ready = ensureReady(config, false); ready != 0) return ready;
     std::cout << "Watching TDLib updates. Ctrl+C to stop.\n";
     while (true) {
         auto event = receive(1.0);
@@ -190,9 +262,11 @@ int TdClient::watch(std::optional<std::int64_t> chatId) {
             const auto start = pos + textKey.size();
             const auto end = event->find('"', start);
             if (end != std::string::npos) {
-                const auto text = event->substr(start, end - start);
-                if (auto packet = bridge.tryParseTelegramText(text)) {
-                    std::cout << "TGVerity packet: type=" << packet->packet.type << " body=" << packet->packet.body << "\n";
+                const auto text = jsonUnescape(event->substr(start, end - start));
+                if (auto packet = RelayPacket::fromTelegramText(text)) {
+                    std::cout << "TGVerity packet: type=" << packet->type
+                              << " packet_id=" << packet->packetId
+                              << " body=" << packet->body << "\n";
                 }
             }
         }
