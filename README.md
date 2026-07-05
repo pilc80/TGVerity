@@ -34,6 +34,16 @@ No hidden Telegram transport is assumed.
 No custom cryptographic primitives.
 ```
 
+Security architecture inputs:
+
+- [Threat model](docs/threat-model.md)
+- [Security benchmark](docs/security-benchmark.md)
+- [Roadmap](docs/roadmap.md)
+- [Platform adapter contract](docs/platform-adapter-contract.md)
+- [Crypto plan](docs/crypto-plan.md)
+- [Build matrix](docs/build-matrix.md)
+- [Testing plan](docs/testing-plan.md)
+
 ---
 
 ## Real UI Concept
