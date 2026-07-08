@@ -52,6 +52,11 @@ public:
     [[nodiscard]] std::size_t inboundCount() const { return _inbound.size(); }
     [[nodiscard]] std::size_t outboundCount() const { return _outbound.size(); }
 
+    // Wire session persistence through the bridge so counters + replay cache
+    // survive restarts.  Returns false if the underlying save/load fails.
+    [[nodiscard]] bool saveSessions(const std::string& path) { return _sessions.save(path); }
+    bool loadSessions(const std::string& path) { return _sessions.load(path); }
+
 private:
     CryptoProvider& _crypto;
     TelegramAdapter& _adapter;

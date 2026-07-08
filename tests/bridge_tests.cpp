@@ -5,6 +5,7 @@
 #include "tgverity/state_machine.h"
 
 #include <cassert>
+#include <fstream>
 #include <iostream>
 #include <string>
 
@@ -73,6 +74,22 @@ int main() {
     const auto* im2 = bBridge.inbound(pid2);
     assert(im2 != nullptr);
     assert(im2->plaintext.empty());
+
+    // C1: Session save/load survives through the bridge API.
+    const std::string sessPath = "bridge_session.tmp";
+    std::remove(sessPath.c_str());
+    assert(aBridge.saveSessions(sessPath));
+    {
+        std::ifstream f(sessPath);
+        assert(f.is_open());
+        std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+        // chat1 session was used: counters + seen packet ids should be persisted.
+        assert(content.find("chat1") != std::string::npos);
+    }
+    Bridge bBridge2(crypto, bob);
+    assert(bBridge2.loadSessions(sessPath));
+    assert(bBridge2.inboundCount() == 0); // new bridge starts empty
+    std::remove(sessPath.c_str());
 
     std::cout << "bridge_tests passed\n";
     return 0;

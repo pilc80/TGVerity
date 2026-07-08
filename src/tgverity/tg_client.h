@@ -74,7 +74,8 @@ private:
     AdapterListener* _listener = nullptr;
 };
 
-// TDLib-backed adapter with authentication.
+// TDLib-backed adapter with authentication (only when built with TGVERITY_USE_TDLIB).
+#ifdef TGVERITY_USE_TDLIB
 class TdlibTelegramClient final : public TelegramAdapter {
 public:
     struct Impl;
@@ -98,5 +99,23 @@ public:
 private:
     std::unique_ptr<Impl> _impl;
 };
+#else
+// Stub when TDLib is not available — satisfies the linker but does nothing.
+class TdlibTelegramClient final : public TelegramAdapter {
+public:
+    TdlibTelegramClient() = default;
+    ~TdlibTelegramClient() = default;
+    int authenticate() { return -1; }
+    int authenticate(const AppConfig&) { return -1; }
+    std::string sendPacketText(const std::string&, const std::string&, const std::string&,
+                               PacketSendOptions = {}) override { return {}; }
+    void deleteMessagesRevoke(const std::string&, const std::vector<std::string>&) override {}
+    void suppressRawRender(const std::string&) override {}
+    void suppressRawNotification(const std::string&) override {}
+    void suppressRawEdit(const std::string&) override {}
+    void renderVirtualMessage(const std::string&, const VirtualMessage&) override {}
+    void setListener(AdapterListener*) override {}
+};
+#endif
 
 } // namespace tgverity

@@ -23,7 +23,7 @@ std::string Bridge::send(const std::string& chatId, const std::string& plaintext
 
     Logger::instance().log(LogLevel::Info, "bridge",
                            "send chat=" + chatId + " packetId=" + packetId
-                           + " plaintext=" + redactSecret(plaintext, Logger::instance().redact()));
+                           + " plaintext=" + redactSecret(plaintext, Logger::instance().secureRedact()));
 
     _adapter.sendPacketText(chatId, packetId, packet.toTelegramText());
     return packetId;
@@ -122,7 +122,7 @@ void Bridge::onIncomingMessage(const std::string& chatId,
     _adapter.renderVirtualMessage(chatId, VirtualMessage{parsed->packetId, *opened});
     Logger::instance().log(LogLevel::Info, "bridge",
                            "recv chat=" + chatId + " packetId=" + parsed->packetId
-                           + " plaintext=" + redactSecret(*opened, Logger::instance().redact()));
+                           + " plaintext=" + redactSecret(*opened, Logger::instance().secureRedact()));
 
     // Emit ACK; register ackForInbound before send so the synchronous
     // onMessageIdBound callback during send can find it.

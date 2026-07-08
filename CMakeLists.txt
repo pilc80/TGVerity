@@ -26,11 +26,14 @@ add_library(tgverity_core
     src/tgverity/p2p_frame.cpp
     src/tgverity/p2p_socket.cpp
     src/tgverity/tg_client_stub.cpp
-    src/tgverity/tg_client_tdlib.cpp
     src/tgverity/fake_telegram_client.cpp
     src/tg/td_client.cpp
     src/tgverity/tgverity_core.cpp
 )
+
+if(TGVERITY_USE_TDLIB)
+    target_sources(tgverity_core PRIVATE src/tgverity/tg_client_tdlib.cpp)
+endif()
 
 target_include_directories(tgverity_core PUBLIC src)
 target_compile_definitions(tgverity_core PUBLIC TGVERITY_PROTOTYPE_INSECURE=1)
