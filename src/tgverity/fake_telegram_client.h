@@ -17,9 +17,14 @@ class FakeTelegramClient final : public TelegramAdapter {
 public:
     std::string sendPacketText(const std::string& chatId,
                                const std::string& correlationId,
-                               const std::string& packetText) override;
+                               const std::string& packetText,
+                               PacketSendOptions options = {}) override;
     void deleteMessagesRevoke(const std::string& chatId,
                               const std::vector<std::string>& serverIds) override;
+    void suppressRawRender(const std::string& serverId) override;
+    void suppressRawNotification(const std::string& serverId) override;
+    void suppressRawEdit(const std::string& serverId) override;
+    void renderVirtualMessage(const std::string& chatId, const VirtualMessage& message) override;
     void setListener(AdapterListener* listener) override { _listener = listener; }
 
     using Deliverer = std::function<void(const std::string& chatId,
@@ -34,6 +39,10 @@ public:
 
     [[nodiscard]] std::size_t sentCount() const { return _sent; }
     [[nodiscard]] const std::vector<std::string>& deletedIds(const std::string& chatId) const;
+    [[nodiscard]] const std::vector<std::string>& suppressedRenderIds() const { return _suppressedRender; }
+    [[nodiscard]] const std::vector<std::string>& suppressedNotificationIds() const { return _suppressedNotification; }
+    [[nodiscard]] const std::vector<std::string>& suppressedEditIds() const { return _suppressedEdit; }
+    [[nodiscard]] const std::vector<VirtualMessage>& virtualMessages(const std::string& chatId) const;
 
 private:
     AdapterListener* _listener = nullptr;
@@ -41,6 +50,10 @@ private:
     std::uint64_t _counter = 0;
     std::size_t _sent = 0;
     std::unordered_map<std::string, std::vector<std::string>> _deleted;
+    std::vector<std::string> _suppressedRender;
+    std::vector<std::string> _suppressedNotification;
+    std::vector<std::string> _suppressedEdit;
+    std::unordered_map<std::string, std::vector<VirtualMessage>> _virtualMessages;
 };
 
 } // namespace tgverity

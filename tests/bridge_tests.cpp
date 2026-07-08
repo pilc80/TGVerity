@@ -31,12 +31,21 @@ int main() {
     assert(ob->plaintext == "hello v0.2");
     assert(ob->status == MessageStatus::cleanup_done);
 
-    // Bob received, decrypted, and cleaned.
+    // Bob received, decrypted, suppressed raw Telegram UI paths, rendered virtual message, and cleaned.
     assert(bBridge.inboundCount() == 1);
     const auto* im = bBridge.inbound(pid);
     assert(im != nullptr);
     assert(im->plaintext == "hello v0.2");
     assert(im->status == MessageStatus::cleanup_done);
+    assert(bob.suppressedRenderIds().size() == 1);
+    assert(bob.suppressedNotificationIds().size() == 1);
+    assert(bob.suppressedEditIds().size() == 1);
+    assert(bob.virtualMessages("chat1").size() == 1);
+    assert(bob.virtualMessages("chat1").front().packetId == pid);
+    assert(bob.virtualMessages("chat1").front().plaintext == "hello v0.2");
+
+    // Unsafe packet-send options are rejected by the fake adapter contract test double.
+    assert(bob.sendPacketText("chat1", "unsafe", "TGVerity", PacketSendOptions{false, true}).empty());
 
     // Both sides invoked revoke cleanup.
     assert(!alice.deletedIds("chat1").empty());

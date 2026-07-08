@@ -6,7 +6,12 @@ namespace tgverity {
 
 std::string FakeTelegramClient::sendPacketText(const std::string& chatId,
                                                const std::string& correlationId,
-                                               const std::string& packetText) {
+                                               const std::string& packetText,
+                                               PacketSendOptions options) {
+    if (!options.disableLinkPreview || options.allowEntities) {
+        Logger::instance().log(LogLevel::Warn, "fake", "unsafe packet send options rejected");
+        return {};
+    }
     ++_counter;
     const std::string sendId = "local-" + std::to_string(_counter);
     const std::string serverId = "srv-" + std::to_string(_counter);
@@ -31,6 +36,22 @@ void FakeTelegramClient::deleteMessagesRevoke(const std::string& chatId,
                            "delete-revoke chat=" + chatId + " count=" + std::to_string(serverIds.size()));
 }
 
+void FakeTelegramClient::suppressRawRender(const std::string& serverId) {
+    _suppressedRender.push_back(serverId);
+}
+
+void FakeTelegramClient::suppressRawNotification(const std::string& serverId) {
+    _suppressedNotification.push_back(serverId);
+}
+
+void FakeTelegramClient::suppressRawEdit(const std::string& serverId) {
+    _suppressedEdit.push_back(serverId);
+}
+
+void FakeTelegramClient::renderVirtualMessage(const std::string& chatId, const VirtualMessage& message) {
+    _virtualMessages[chatId].push_back(message);
+}
+
 void FakeTelegramClient::receiveFromWire(const std::string& chatId,
                                          const std::string& serverId,
                                          const std::string& text) {
@@ -42,6 +63,12 @@ const std::vector<std::string>& FakeTelegramClient::deletedIds(const std::string
     static const std::vector<std::string> empty;
     const auto it = _deleted.find(chatId);
     return it == _deleted.end() ? empty : it->second;
+}
+
+const std::vector<VirtualMessage>& FakeTelegramClient::virtualMessages(const std::string& chatId) const {
+    static const std::vector<VirtualMessage> empty;
+    const auto it = _virtualMessages.find(chatId);
+    return it == _virtualMessages.end() ? empty : it->second;
 }
 
 } // namespace tgverity

@@ -1,4 +1,4 @@
-# TGVerity Crypto Plan — 2026-07-05 20:45 MSK
+# TGVerity Crypto Plan — 2026-07-06 15:16 MSK
 
 ## Current stance
 
@@ -9,6 +9,28 @@ v0.2: format-ready, crypto-insecure prototype
 v0.3+: real cryptographic provider and protocol work
 v1.0: reviewed, threat-model-bound security claims
 ```
+
+## Desktop two-client security bar
+
+Two Telegram Desktop users may be called ready for security-gated internal testing only when:
+
+1. `IdentityCryptoProvider` is impossible in secure mode.
+2. Each Desktop client has a persistent TGVerity device identity key.
+3. In-chat QR verification binds both Telegram accounts, both identity keys, both device ids, chat/peer id, protocol version, crypto/session suite, challenge/expiry, and negotiated parameter hash.
+4. `Safe` appears only after transcript verification.
+5. AAD binds packet type/id/counter, sender/receiver identity ids, Telegram account ids, chat/peer id, device ids, protocol version, crypto suite, and session id/challenge.
+6. Replay cache survives restart.
+7. Key change removes `Safe` and blocks silent accept.
+8. Logs cannot contain plaintext, carrier body, private keys, session keys, or safety secrets.
+
+## Recommended implementation track
+
+```text
+C1 alpha: libsodium-backed AEAD + verified identity/session transcript
+C2 reviewed MVP: X3DH-style async setup + Double Ratchet-style messaging, or vetted equivalent
+```
+
+C1 is acceptable only for internal two-client Desktop proof. Public security claims require reviewed C2+ design and external review.
 
 ## Security goals
 
@@ -26,12 +48,12 @@ v1.0: reviewed, threat-model-bound security claims
 | Milestone | Scope | Done when |
 |---|---|---|
 | **C0 Prototype seam** | current provider interface | identity provider warns loudly; tests pass |
-| **C1 AEAD provider** | libsodium or equivalent AEAD | tamper/AAD/replay tests fail closed |
-| **C2 Identity + verification** | long-term identity key + QR/safety number | `Safe` requires verified transcript |
-| **C3 Async session setup** | X3DH-style or reviewed equivalent | first message can establish session over Relay |
-| **C4 Message ratchet** | Double Ratchet-style or reviewed equivalent | forward secrecy + post-compromise recovery properties documented |
-| **C5 Direct handshake** | Noise-style/WebRTC-secured channel | Direct has separate verified transport binding |
-| **C6 External review** | protocol + implementation review | public security claims allowed only after fixes |
+| **C1 AEAD provider** | libsodium XChaCha20-Poly1305 AEAD; nonce management spec; HKDF KDF spec; memory zeroization policy; secure storage adapter interface | tamper/AAD/replay tests fail closed; nonce never repeats under restart |
+| **C2 Identity + verification** | long-term identity key (X25519); QR/safety number wire format; transcript binding | `Safe` requires verified transcript; key-change detection trigger fires |
+| **C3 Async session setup** | X3DH handshake (4 DH, HKDF master secret); prekey bundle format/wire; KeyExchangeMessage; session state machine (named/keyed/indexed); nonce spec applied; prekey bundle validation (signature + cross-key-binding) | first encrypted message can establish session over Relay; 1:K consumed and exhausted notification works |
+| **C4 Message ratchet** | Symmetric ratchet (chain key advance); Asymmetric ratchet (ephemeral DH); per-message key derivation; MAC tag verification before decryption; counter overflow at 2^63 | forward secrecy + post-compromise recovery properties documented; ratchet state persists across restart |
+| **C5 Direct handshake** | Noise-style/WebRTC-secured channel | Direct has separate verified transport binding; QUIC/WebRTC ICE/STUN tested |
+| **C6 External review** | protocol + implementation review; formal analysis (ProVerif/Tamarin) if budget allows | public security claims allowed only after fixes |
 
 ## Provider rules
 
@@ -123,3 +145,16 @@ A session is **Unverified** until this transcript is verified.
 3. Metadata privacy in Telegram Relay.
 4. Anonymous account creation.
 5. Protection from compromised endpoints.
+6. Post-quantum migration before external review (Signal's PQXDH is noted for future planning).
+
+## Critical missing designs (before C3)
+
+| Design | Required content | Blocks |
+|---|---|---|
+| **Nonce management spec** | Per-message unique nonce; counter-based; 24-byte nonce for XChaCha20-Poly1305; never repeat | C1 AEAD provider |
+| **Key derivation spec** | HKDF per RFC 5869; distinct `info` contexts for session keys, chain keys, MAC keys | C1–C4 |
+| **X3DH wire format** | Prekey bundle format, X3DH handshake transcript, KeyExchangeMessage envelope, AEAD AD binding | C3 |
+| **Session state machine** | Named sessions, keyed sessions, indexed prekeys (Signal session layer spec) | C3 |
+| **Prekey bundle validation** | Signature verification of signed prekey; cross-key-binding check | C3 |
+| **Ratchet state layout** | Root key, sending chain key, receiving chain key, per-message MAC key derivation | C4 |
+| **Memory zeroization policy** | `sodium_memzero()` on all secret buffers post-use; `secure_alloc`/`secure_realloc` | C1 |

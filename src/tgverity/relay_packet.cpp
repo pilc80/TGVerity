@@ -108,6 +108,9 @@ std::optional<RelayPacket> parseEnvelope(const std::string& envelope) {
     if (!(haveProtocol && haveVersion && haveSuite && haveType && haveId)) return std::nullopt;
     if (packet.type != "relay_text" && packet.type != "relay_ack") return std::nullopt;
     if (packet.type == "relay_ack" && (packet.refId == "-" || packet.refId.empty())) return std::nullopt;
+    // L4: relay_text must have a non-empty body (empty body is valid only for ACK).
+    // Matches shim (desktop/tgverity_bridge_shim.cpp:166) to prevent drift.
+    if (packet.type == "relay_text" && packet.body.empty()) return std::nullopt;
     return packet;
 }
 

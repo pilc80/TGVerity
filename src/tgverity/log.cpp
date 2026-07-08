@@ -27,6 +27,19 @@ Logger& Logger::instance() {
     return logger;
 }
 
+void Logger::setRedact(bool redact) {
+#if TGVERITY_PROTOTYPE_INSECURE
+    _redact = redact;
+#else
+    if (redact && !_redact) {
+        // Attempt to disable redaction in a secure build — ignore and log.
+        log(LogLevel::Error, "log", "setRedact(false) ignored in secure build");
+    }
+    // In secure builds, redact is always true; never set _redact = false.
+    _redact = true;
+#endif
+}
+
 void Logger::setFile(const std::string& path) {
     std::lock_guard<std::mutex> lock(_mutex);
     _filePath = path;

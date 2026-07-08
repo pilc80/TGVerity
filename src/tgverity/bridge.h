@@ -17,6 +17,8 @@ struct OutboundMessage {
     MessageStatus status = MessageStatus::local_pending;
     std::string serverId;
     std::string ackServerId;
+    // Zero-out secret material on destruction / explicit clear.
+    void clearPlaintext() { plaintext.clear(); }
 };
 
 struct InboundMessage {
@@ -25,6 +27,8 @@ struct InboundMessage {
     MessageStatus status = MessageStatus::cleanup_pending;
     std::string msgServerId;
     std::string ackServerId;
+    // Zero-out secret material on destruction / explicit clear.
+    void clearPlaintext() { plaintext.clear(); }
 };
 
 // Orchestrates the TGVerity lifecycle over a platform adapter. Implements

@@ -29,7 +29,22 @@ public:
     void setLevel(LogLevel level) { _level = level; }
     [[nodiscard]] LogLevel level() const { return _level; }
 
-    void setRedact(bool redact) { _redact = redact; }
+    // When TGVERITY_PROTOTYPE_INSECURE is set, this flag is user-tunable
+    // (legacy prototype behaviour).  In non-prototype builds it is forced
+    // to true and any call is a no-op — logged as ERROR if attempted.
+    void setRedact(bool redact);
+
+    // Secure redaction: always-on, cannot be disabled by the user.
+    // Only available when !TGVERITY_PROTOTYPE_INSECURE.
+    [[nodiscard]] bool secureRedact() const {
+#if TGVERITY_PROTOTYPE_INSECURE
+        (void)redact(); // suppress unused warning in prototype builds
+        return redact();
+#else
+        return true;
+#endif
+    }
+
     [[nodiscard]] bool redact() const { return _redact; }
 
     // Open an append file sink. Empty path => stderr only and closes any open file.

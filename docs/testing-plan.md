@@ -1,4 +1,4 @@
-# TGVerity Testing Plan — 2026-07-05 20:45 MSK
+# TGVerity Testing Plan — 2026-07-06 15:16 MSK
 
 ## Goal
 
@@ -10,6 +10,28 @@ Integration tests prove adapter flow.
 E2E smokes prove real Telegram/client behavior.
 Release gates block unsafe claims/builds.
 ```
+
+## Desktop two-client security gate
+
+Before claiming two Desktop users can test security-gated TGVerity Relay:
+
+```text
+secure-mode core tests pass
+TDLib two-account transport smoke passes
+Desktop hook patch applies to pinned upstream
+TGVerity.app builds and launches with TGVerity data path
+normal Telegram chat works unchanged
+in-chat QR verification reaches Safe Relay
+TGVerity sentinel message decrypts only in virtual TGVerity UI
+raw carrier bubble and raw notification are suppressed
+Known accessible Telegram search/history/raw surfaces do not contain sentinel plaintext
+logs contain no sentinel, packet body, keys, safety number, or session secret
+key-change simulation removes Safe and requires reverify
+```
+
+TDLib two-account transport smoke is a planned gate until `TdlibTelegramClient` implements the `TelegramAdapter` path.
+
+Use a fresh sentinel per run: `TGV_LEAK_SENTINEL_<run_id>`.
 
 ## Test layers
 
@@ -39,8 +61,9 @@ Release gates block unsafe claims/builds.
 
 | Gap | Required test |
 |---|---|
-| real crypto | AEAD seal/open, tamper, AAD mismatch, replay |
-| release safety | build/test fails if insecure provider is enabled for release |
+| real crypto | AEAD seal/open, tamper, AAD mismatch, replay, restart replay cache |
+| QR verification | transcript bind, safety number mismatch, expiry, wrong chat/account rejection |
+| release safety | build/test fails if insecure provider is enabled for secure mode |
 | TDLib real flow | two-account send/watch relay smoke |
 | Desktop GUI | raw packet hidden, virtual message rendered, normal chat unchanged |
 | Android | notification suppression, QR verification, storage, normal chat unchanged |
@@ -48,17 +71,35 @@ Release gates block unsafe claims/builds.
 | key change | Safe removed, reverify required |
 | upstream drift | patches apply to pinned upstream commit |
 
+> New from code review 2026-07-07 (see `docs/code-review-findings.md`):
+
+| Gap | Required test |
+|---|---|
+| ACK suppression | ACK packets not rendered/notified on raw Telegram path |
+| log redaction enforced | `setRedact(false)` has no effect when `!TGVERITY_PROTOTYPE_INSECURE` |
+| session persistence | replay cache and counters survive process restart |
+| plaintext wipe | bridge does not retain plaintext after cleanup_done |
+| parser strictness | empty body rejected for relay_text in both core and shim |
+| AAD binding completeness | AEAD rejects when account/device/session fields missing from AAD |
+| X3DH handshake | prekey bundle validation, signature check, cross-key-binding, KeyExchangeMessage round-trip |
+| Ratchet state | root key derivation, chain key advance, per-message key derivation, counter overflow at 2^63 |
+| Nonce uniqueness | same nonce never used twice under any restart/replay scenario |
+| Memory zeroization | secret buffers cleared after use; crash/dump would not expose keys |
+| Shim/core format parity | base32 envelope round-trips through both modules with identical output |
+
 ## Core test gates
 
 ```sh
-cmake --build build
-ctest --test-dir build --output-on-failure
+cmake --build .build/core
+ctest --test-dir .build/core --output-on-failure
 
-cmake --build build-tdlib
-ctest --test-dir build-tdlib --output-on-failure
+cmake --build .build/core-tdlib
+ctest --test-dir .build/core-tdlib --output-on-failure
 ```
 
 ## Required security tests
+
+> Updated from code review 2026-07-07.
 
 | Test | Expected result |
 |---|---|
@@ -70,6 +111,12 @@ ctest --test-dir build-tdlib --output-on-failure
 | raw packet notification | suppressed |
 | log scan | no plaintext, keys, safety numbers, or packet bodies |
 | release build with identity crypto | fails |
+| ACK packet suppress | `suppressRawRender`/`suppressRawNotification`/`suppressRawEdit` called |
+| log redaction enforced | `Logger::setRedact(false)` no-ops when `!TGVERITY_PROTOTYPE_INSECURE` |
+| session persistence | replay cache and counters survive process restart |
+| plaintext wipe | bridge releases plaintext after cleanup_done |
+| parser strictness | empty body rejected for relay_text |
+| AAD binding completeness | packet rejected when account/device/session missing from AAD |
 
 ## Platform E2E scenarios
 
@@ -95,7 +142,10 @@ send TGVerity message in enabled chat
 verify raw packet bubble suppressed
 verify raw packet notification suppressed
 verify virtual TGVerity bubble/status shown
+verify in-chat QR/safety verification changes state to Safe only after transcript validation
 verify edit affordance hidden for TGVerity packet/message
+verify known accessible Telegram search/history/raw surfaces do not contain leak sentinel
+verify key change removes Safe and requires reverify
 ```
 
 ### Android

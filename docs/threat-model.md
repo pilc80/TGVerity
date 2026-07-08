@@ -79,7 +79,7 @@ Direct mode reduces Telegram transport visibility, but does not solve endpoint c
 |---|---|
 | Independent TGVerity identity | do not derive trust solely from Telegram account/session |
 | Per-device identity for MVP | multi-device is explicit later work, not silent key sharing |
-| Narrow platform adapter | Telegram-side code never sees private keys/session state/plaintext |
+| Narrow platform adapter | Telegram-owned raw message/search/history/notification/storage paths never receive plaintext; TGVerity-owned render code may receive transient display plaintext |
 | Open packet/protocol docs | security audience must inspect claims |
 | External crypto review before release claims | v0.x prototypes must stay labeled insecure until reviewed |
 

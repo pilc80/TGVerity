@@ -16,6 +16,20 @@ int main() {
     assert(redactSecret("hello-secret", false) == "hello-secret");
     log.setRedact(true);
 
+    // setRedact toggle: in prototype builds, false disables redaction.
+    // In non-prototype builds, it's forced true (no-op for false).
+    log.setRedact(false);
+    assert(redactSecret("hello-secret", log.redact()) ==
+#if TGVERITY_PROTOTYPE_INSECURE
+        "hello-secret"
+#else
+        "[redact:12]"
+#endif
+    );
+    log.setRedact(true);
+    assert(redactSecret("hello-secret", log.redact()) == "[redact:12]");
+    assert(log.secureRedact() == true);
+
     // Level filtering: Trace < Debug < Info < Warn < Error.
     log.setLevel(LogLevel::Info);
     assert(static_cast<int>(log.level()) == static_cast<int>(LogLevel::Info));

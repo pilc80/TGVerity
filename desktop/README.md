@@ -66,10 +66,14 @@ patch lives at `patches/tdesktop-tgverity-hooks-v0.2.DRAFT.patch`.
 Each hook point is tagged `// TGVHOOK v0.2: <intent>` and wrapped in
 `// TGVHOOK BEGIN` / `// TGVHOOK END` so a human finalizes placement post-checkout.
 
-## C ABI plan (replaces duplication)
+## C ABI plan (replaces duplication) — BLOCKED
 
 The duplicated codec/envelope is temporary. Once the GUI build path is stable,
-expose `tgverity-core` via a thin C ABI and drop the duplicate:
+expose `tgverity-core` via a thin C ABI and drop the duplicate.
+
+**Blocks:** D3/D4 Desktop hook wiring. The C ABI is a prerequisite for H1 (hook wiring) because the shim's current standalone codec makes drift detection impossible. Until the C ABI is implemented, the shim is the single source of truth for the wire format — and any divergence silently breaks cross-module round-trips.
+
+Priority: C ABI bridge → H1 hook wiring → D4 build attempt.
 
 ```c
 // tgverity_core.h (planned)

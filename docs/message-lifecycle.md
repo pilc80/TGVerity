@@ -1,4 +1,4 @@
-# TGVerity Message Lifecycle — 2026-07-04 20:18 MSK
+# TGVerity Message Lifecycle — 2026-07-06 15:16 MSK
 
 ## Goal
 
@@ -42,22 +42,22 @@ Fork strategy  = patch official client (Android/iOS/Desktop) → native UX, high
 TDLib strategy = thin client over TDLib                       → clean adapter, no fork, rebuild UI
 ```
 
-Prefer **TDLib** for non-primary platforms; reserve the **fork for primary mobile** (native UX matters there). All platforms expose the same MTProto primitives, so `tgverity-core` stays identical across both strategies.
+Current priority is **Telegram Desktop fork proof** because the branded macOS app path already exists. TDLib remains the fastest regression harness for real Telegram transport; Android remains product MVP after the Desktop proof informs hook design.
 
 ## Packet text
 
 ```text
-TGVerity:
-<spoiler entity>opaque_payload</spoiler>
+TGVerity secure packet. Open with TGVerity to read.
+v1:<safe-encoded-opaque-payload>
 ```
 
 | Part | Purpose |
 |---|---|
-| `TGVerity:` | parser anchor + unsupported-client label |
-| single spoiler entity | structural UX-only hide until tapped; **server still sees text** — not security |
+| explanatory prefix | parser anchor + unsupported-client label |
+| `v1:` | wire-version marker |
 | payload | encrypted + authenticated envelope |
 
-Payload carries **zero** formatting/link/mention entities (reconciles README rule 5); the spoiler is one structural wrapper, not formatting. Whole message ≤ **4096 chars** incl. prefix+payload; larger → multi-msg/file. `pre`/code also suppresses server auto-URL detection but adds a copy affordance — spoiler preferred for MVP.
+Payload carries **no Telegram formatting/link/mention/spoiler entities**. Whole message ≤ **4096 chars** incl. prefix+payload; larger → multi-msg/file policy. Link previews must be disabled where the adapter allows it.
 
 ## Detection
 
@@ -206,7 +206,7 @@ All platforms clear the hook set; only maintenance cost differs. Symbols illustr
 | revoke `MESSAGE_DELETE_FORBIDDEN` for service msgs; check `messageProperties.can_be_deleted_*` per msg | cleanup skips undeletable ids, never assumes success |
 | revoke **forced true** for supergroups/channels/secret chats; batch limit **≤100 ids/call** | cleanup batches ids; MVP is 1:1 so no admin gating |
 | TDLib `deleteMessages(chat_id, ids, revoke)` same model; `link_preview_options{is_disabled:true}` kills previews | CLI/mobile adapters share policy + preview hygiene |
-| Telegram spoiler entity exists (`messageEntitySpoiler` / `textEntityTypeSpoiler`) | payload can be spoilered for UX hygiene |
+| Telegram spoiler entity exists (`messageEntitySpoiler` / `textEntityTypeSpoiler`) | not used for MVP carrier; no carrier entities avoids offset/linkification ambiguity |
 | entity offsets use UTF-16 units | adapter must generate entities carefully |
 | text cap **4096 chars** total (caption 1024) | packet must fit prefix+payload in 4096; larger → multi-msg/file |
 

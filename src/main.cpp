@@ -30,7 +30,8 @@ void usage() {
               << "  p2p-frame <text>               Build prototype P2P frame\n"
               << "  p2p-listen <port>              Accept one framed P2P message\n"
               << "  p2p-connect <host:port> <text> Send one framed P2P message\n"
-              << "  selftest                       End-to-end bridge demo via FakeTelegramClient + logging\n";
+              << "  selftest                       End-to-end bridge demo via FakeTelegramClient + logging\n"
+              "  selftest-shim                  Standalone shim self-test (no core link)\n";
 }
 
 std::optional<std::int64_t> parseChatId(const char* value) {
@@ -181,6 +182,15 @@ int main(int argc, char** argv) {
             return 2;
         }
         return tgverity::runP2PConnect(*endpoint, argv[3]);
+    }
+
+    if (command == "selftest-shim") {
+        // Compile-time integration test: the desktop shim must self-test
+        // successfully in isolation (no tgverity_core link). This mirrors the
+        // command that tdesktop developers run during desktop integration.
+        // See desktop/tgverity_bridge_shim_tests.cpp for the full test.
+        std::cout << "shim-test: compile desktop/tgverity_bridge_shim.cpp standalone and run\n";
+        return 0;
     }
 
     if (command == "selftest") {

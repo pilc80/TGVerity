@@ -11,11 +11,12 @@ Reproducible build for the TGVerity desktop client (Telegram Desktop fork).
 ## Build (macOS arm64, MinSizeRel)
 
 ```text
-git clone https://github.com/telegramdesktop/tdesktop.git
-cd tdesktop && git checkout 85c94951ab
+mkdir -p .build
+git clone --recursive https://github.com/telegramdesktop/tdesktop.git .build/tdesktop-src
+cd .build/tdesktop-src && git checkout 85c94951ab
 git apply /path/to/TGVerity/patches/tdesktop-tgverity.patch
 cd Telegram
-./build/prepare/mac.sh                       # long; builds deps into ~/Claude/Libraries
+./build/prepare/mac.sh                       # long; keep all TGVerity scratch under .build/ when configurable
 ./configure.sh -D TDESKTOP_API_ID=2040 -D TDESKTOP_API_HASH=b18441a1ff607e10a989891a5462e627
 cd ..
 xcodebuild -project out/Telegram.xcodeproj -scheme Telegram \
@@ -33,7 +34,7 @@ Product: `out/MinSizeRel/TGVerity.app`. Runnable copy kept at `/Applications/TGV
 
 ## Creds
 
-`TDESKTOP_API_ID=2040`, `TDESKTOP_API_HASH=b18441a1ff607e10a989891a5462e627` (official tdesktop pair; also in zsh history).
+`TDESKTOP_API_ID=<id>`, `TDESKTOP_API_HASH=<hash>`. Use credentials allowed by the upstream/build policy; do not commit private credentials.
 
 ## Status
 

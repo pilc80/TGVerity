@@ -1,9 +1,9 @@
 # TGVerity
 
-**Unofficial Telegram-compatible client with verified direct/relay secure sessions.**
+**Unofficial Telegram-compatible client with verified Relay-first secure sessions.**
 
-**Status:** concept draft  
-**Primary platform:** Android first  
+**Status:** Desktop two-client security-proof architecture draft<br>
+**Primary platform:** Telegram Desktop macOS proof, then Android<br>
 **Core rule:** normal Telegram behavior stays intact; TGVerity adds an optional verified secure-session layer.
 
 ---
@@ -38,9 +38,12 @@ Security architecture inputs:
 
 - [Threat model](docs/threat-model.md)
 - [Security benchmark](docs/security-benchmark.md)
+- [Code review findings](docs/code-review-findings.md)
 - [Roadmap](docs/roadmap.md)
 - [Platform adapter contract](docs/platform-adapter-contract.md)
 - [Crypto plan](docs/crypto-plan.md)
+- [Desktop two-client security spec](docs/desktop-two-client-security-spec.md)
+- [Message lifecycle](docs/message-lifecycle.md)
 - [Build matrix](docs/build-matrix.md)
 - [Testing plan](docs/testing-plan.md)
 
@@ -295,25 +298,39 @@ Controlled terms:
 
 ---
 
-## MVP
+## Desktop Security Proof
 
-### v0.1 Technical Goal
+Current implementation focus is a **two Telegram Desktop client security proof** before Android product work.
 
-Before product features, TGVerity must prove that the project can build against chosen Telegram sources/libs.
+| Feature | Desktop proof |
+|---|---:|
+| Normal Telegram compatibility | yes |
+| TGVerity in-chat QR verification | yes |
+| Verified Relay over Telegram text carrier | yes |
+| Raw carrier bubble/notification suppression | yes, on patched TGVerity clients |
+| Plaintext leakage checks | known accessible surfaces |
+| Key-change warning | yes |
+| Direct P2P | later/experimental |
+| Groups | no |
+| Android/iOS product MVP | later |
 
-v0.1 should test:
+Success criteria:
 
-1. Building a minimal Telegram-compatible base.
-2. Adding the smallest TGVerity integration point.
-3. Sending/receiving text relay packets in a controlled chat.
-4. Running early P2P and relay protocol experiments.
-5. Verifying that normal Telegram behavior still works.
+```text
+Normal Telegram still works.
+Two TGVerity Desktop users verify identity via QR/safety transcript.
+They exchange encrypted TGVerity Relay messages.
+Telegram sees only opaque carrier text, not plaintext.
+Unverified sessions are never labeled Safe.
+Known raw UI/notification/search/log surfaces show no plaintext sentinel.
+Unsafe upstream changes block release.
+```
 
-### Product MVP
+### Android Product MVP
 
-Android MVP should be small:
+Android remains the intended product MVP platform after the Desktop security proof informs the hook model.
 
-| Feature | MVP |
+| Feature | Android MVP |
 |---|---:|
 | Normal Telegram compatibility | yes |
 | TGVerity peer detection | yes |
@@ -322,23 +339,10 @@ Android MVP should be small:
 | Safety number | yes |
 | Key-change warning | yes |
 | Safe/Unverified UI labels | yes |
-| Direct P2P | v0.1 protocol experiment; product later |
+| Direct P2P | later/experimental |
 | Groups | no |
 | Multi-device identity | no |
 | Calls | no |
-| iOS/Desktop | later |
-
-Success criteria:
-
-```text
-Normal Telegram still works.
-Two TGVerity users can detect each other.
-They can verify identity via QR/safety number.
-They can exchange encrypted TGVerity relay messages.
-Telegram sees only opaque TGVerity payloads, not plaintext.
-Unverified sessions are never labeled Safe.
-Unsafe upstream changes block release.
-```
 
 ---
 
@@ -352,26 +356,26 @@ Current v0.1 Mac track has two parallel parts:
 CLI build:
 
 ```text
-cmake -S . -B build -G Ninja
-cmake --build build
-ctest --test-dir build --output-on-failure
+cmake -S . -B .build/core -G Ninja
+cmake --build .build/core
+ctest --test-dir .build/core --output-on-failure
 ```
 
 TDLib-enabled CLI build:
 
 ```text
 brew install tdlib
-cmake -S . -B build-tdlib -G Ninja -DTGVERITY_USE_TDLIB=ON -DCMAKE_PREFIX_PATH=/opt/homebrew
-cmake --build build-tdlib
-ctest --test-dir build-tdlib --output-on-failure
+cmake -S . -B .build/core-tdlib -G Ninja -DTGVERITY_USE_TDLIB=ON -DCMAKE_PREFIX_PATH=/opt/homebrew
+cmake --build .build/core-tdlib
+ctest --test-dir .build/core-tdlib --output-on-failure
 ```
 
 CLI smoke:
 
 ```text
-build/tgverity relay-pack "hello relay"
-build/tgverity p2p-frame "hello p2p"
-build-tdlib/tgverity tdlib-version
+.build/core/tgverity relay-pack "hello relay"
+.build/core/tgverity p2p-frame "hello p2p"
+.build/core-tdlib/tgverity tdlib-version
 ```
 
 Telegram CLI flow:
@@ -380,26 +384,27 @@ Telegram CLI flow:
 export TGVERITY_API_ID=<id>
 export TGVERITY_API_HASH=<hash>
 export TGVERITY_PHONE=<phone>
-build-tdlib/tgverity login
-build-tdlib/tgverity chats
-build-tdlib/tgverity send-normal <chat_id> "normal hello"
-build-tdlib/tgverity send-relay <chat_id> "relay hello"
-build-tdlib/tgverity watch [chat_id]
+.build/core-tdlib/tgverity login
+.build/core-tdlib/tgverity chats
+.build/core-tdlib/tgverity send-normal <chat_id> "normal hello"
+.build/core-tdlib/tgverity send-relay <chat_id> "relay hello"
+.build/core-tdlib/tgverity watch [chat_id]
 ```
 
 P2P smoke:
 
 ```text
-build-tdlib/tgverity p2p-listen 7777
-build-tdlib/tgverity p2p-connect 127.0.0.1:7777 "p2p hello"
+.build/core-tdlib/tgverity p2p-listen 7777
+.build/core-tdlib/tgverity p2p-connect 127.0.0.1:7777 "p2p hello"
 ```
 
 Telegram Desktop upstream build requires full Xcode, not only Command Line Tools:
 
 ```text
 sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-git clone --recursive https://github.com/telegramdesktop/tdesktop.git
-cd tdesktop/Telegram
+mkdir -p .build
+git clone --recursive https://github.com/telegramdesktop/tdesktop.git .build/tdesktop-src
+cd .build/tdesktop-src/Telegram
 ./build/prepare/mac.sh
 ./configure.sh -D TDESKTOP_API_ID=<id> -D TDESKTOP_API_HASH=<hash>
 open ../out/Telegram.xcodeproj
@@ -419,7 +424,7 @@ tgverity-bridge public API
 tgverity-core private state
 ```
 
-Forbidden from Telegram-side code:
+Forbidden from Telegram-side raw message/search/notification/storage code:
 
 ```text
 TGVerity private keys
@@ -431,6 +436,8 @@ P2P private metadata
 packet internals except approved relay envelope
 logs/telemetry containing TGVerity private state
 ```
+
+TGVerity-owned UI render paths may display decrypted virtual messages, but plaintext must not be written back into Telegram message text, raw history, search index, raw notification previews, or logs.
 
 ---
 

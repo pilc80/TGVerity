@@ -2,6 +2,14 @@ cmake_minimum_required(VERSION 3.20)
 project(TGVerity VERSION 0.2.0 LANGUAGES CXX)
 
 option(TGVERITY_USE_TDLIB "Build Telegram client against TDLib tdjson" OFF)
+option(TGVERITY_PROTOTYPE_INSECURE "Allow IdentityCryptoProvider prototype crypto" ON)
+
+if(NOT TGVERITY_PROTOTYPE_INSECURE)
+    message(FATAL_ERROR
+        "TGVERITY_PROTOTYPE_INSECURE=OFF requested, but v0.2 has only "
+        "IdentityCryptoProvider. Add a real crypto provider before configuring "
+        "a non-prototype build.")
+endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -21,9 +29,11 @@ add_library(tgverity_core
     src/tgverity/tg_client_tdlib.cpp
     src/tgverity/fake_telegram_client.cpp
     src/tg/td_client.cpp
+    src/tgverity/tgverity_core.cpp
 )
 
 target_include_directories(tgverity_core PUBLIC src)
+target_compile_definitions(tgverity_core PUBLIC TGVERITY_PROTOTYPE_INSECURE=1)
 
 if(TGVERITY_USE_TDLIB)
     find_package(Td CONFIG REQUIRED)
@@ -52,6 +62,14 @@ if(BUILD_TESTING)
     target_link_libraries(crypto_provider_tests PRIVATE tgverity_core)
     add_test(NAME crypto_provider_tests COMMAND crypto_provider_tests)
 
+    add_test(NAME insecure_release_build_blocked
+        COMMAND ${CMAKE_COMMAND}
+            -S ${CMAKE_SOURCE_DIR}
+            -B ${CMAKE_BINARY_DIR}/insecure-release-gate
+            -DTGVERITY_PROTOTYPE_INSECURE=OFF
+            -DBUILD_TESTING=OFF)
+    set_tests_properties(insecure_release_build_blocked PROPERTIES WILL_FAIL TRUE)
+
     add_executable(state_machine_tests tests/state_machine_tests.cpp)
     target_link_libraries(state_machine_tests PRIVATE tgverity_core)
     add_test(NAME state_machine_tests COMMAND state_machine_tests)
@@ -63,4 +81,21 @@ if(BUILD_TESTING)
     add_executable(bridge_tests tests/bridge_tests.cpp)
     target_link_libraries(bridge_tests PRIVATE tgverity_core)
     add_test(NAME bridge_tests COMMAND bridge_tests)
+
+    add_executable(bridge_f0_tests tests/bridge_f0_tests.cpp)
+    target_link_libraries(bridge_f0_tests PRIVATE tgverity_core)
+    add_test(NAME bridge_f0_tests COMMAND bridge_f0_tests)
+
+    add_executable(tgverity_bridge_shim_tests
+        desktop/tgverity_bridge_shim.cpp
+        desktop/tgverity_bridge_shim_tests.cpp)
+    target_include_directories(tgverity_bridge_shim_tests PRIVATE desktop)
+    add_test(NAME tgverity_bridge_shim_tests COMMAND tgverity_bridge_shim_tests)
+
+    add_executable(tgverity_drift_test
+        src/tgverity/tgverity_drift_test.cpp
+    )
+    target_include_directories(tgverity_drift_test PRIVATE src)
+    target_link_libraries(tgverity_drift_test PRIVATE tgverity_core)
+    add_test(NAME tgverity_drift_test COMMAND tgverity_drift_test)
 endif()

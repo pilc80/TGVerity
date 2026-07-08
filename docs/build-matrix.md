@@ -1,4 +1,4 @@
-# TGVerity Build Matrix — 2026-07-05 20:45 MSK
+# TGVerity Build Matrix — 2026-07-06 15:16 MSK
 
 ## Purpose
 
@@ -20,13 +20,13 @@ Define what “runs correctly” means per platform.
 ## Known verified commands
 
 ```sh
-cmake -S . -B build -G Ninja
-cmake --build build
-ctest --test-dir build --output-on-failure
+cmake -S . -B .build/core -G Ninja
+cmake --build .build/core
+ctest --test-dir .build/core --output-on-failure
 
-cmake -S . -B build-tdlib -G Ninja -DTGVERITY_USE_TDLIB=ON -DCMAKE_PREFIX_PATH=/opt/homebrew
-cmake --build build-tdlib
-ctest --test-dir build-tdlib --output-on-failure
+cmake -S . -B .build/core-tdlib -G Ninja -DTGVERITY_USE_TDLIB=ON -DCMAKE_PREFIX_PATH=/opt/homebrew
+cmake --build .build/core-tdlib
+ctest --test-dir .build/core-tdlib --output-on-failure
 ```
 
 ## Per-platform run criteria
@@ -35,7 +35,8 @@ ctest --test-dir build-tdlib --output-on-failure
 |---|---|
 | **CLI** | build/tests pass; `relay-pack`, `relay-parse`, `p2p-frame`, `selftest` work |
 | **TDLib CLI** | TDLib version prints; login succeeds; chats list; normal send works; relay packet send/watch works |
-| **Desktop** | branded TGVerity app launches; normal Telegram login/chat works; TGVerity packet path suppresses raw packet and renders virtual message |
+| **Desktop prototype** | branded TGVerity app launches; normal Telegram login/chat works; TGVerity packet path suppresses raw packet and renders virtual message |
+| **Desktop security proof** | prototype criteria + in-chat QR mutual confirmation; Safe state correct; secure-mode crypto active; known raw UI/notification/search/log leakage checks pass; key-change smoke passes |
 | **Android** | normal chats untouched; TGVerity invite/verification/Relay works; raw notification suppressed |
 | **iOS** | feasibility doc proves whether native fork or TDLib shell is viable |
 | **Web/headless** | useful for testing only unless local-security constraints are solved |
@@ -84,7 +85,7 @@ recorded blockers = none critical
 ## Artifacts to avoid committing
 
 ```text
-build*/
+.build/
 .tdlib/
 local Telegram session data
 Xcode derived data

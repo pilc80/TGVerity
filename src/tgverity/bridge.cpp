@@ -51,6 +51,7 @@ void Bridge::onMessageIdBound(const std::string& chatId,
             iit->second.ackServerId = serverId;
             _adapter.deleteMessagesRevoke(chatId, {iit->second.msgServerId, serverId});
             StateMachine::transition(iit->second.status, MessageStatus::cleanup_done);
+            iit->second.clearPlaintext();
             Logger::instance().log(LogLevel::Debug, "bridge", "inbound " + inboundId + " cleanup_done");
         }
     }
@@ -66,6 +67,11 @@ void Bridge::onIncomingMessage(const std::string& chatId,
     }
 
     if (parsed->type == "relay_ack") {
+        // Suppress all raw Telegram UI paths for the ACK packet.
+        _adapter.suppressRawRender(serverId);
+        _adapter.suppressRawNotification(serverId);
+        _adapter.suppressRawEdit(serverId);
+
         auto oit = _outbound.find(parsed->refId);
         if (oit == _outbound.end()) {
             Logger::instance().log(LogLevel::Warn, "bridge", "ACK ref=" + parsed->refId + " unknown");
@@ -80,6 +86,7 @@ void Bridge::onIncomingMessage(const std::string& chatId,
         if (!oit->second.serverId.empty()) {
             _adapter.deleteMessagesRevoke(chatId, {oit->second.serverId, serverId});
             StateMachine::transition(oit->second.status, MessageStatus::cleanup_done);
+            oit->second.clearPlaintext();
         }
         Logger::instance().log(LogLevel::Info, "bridge",
                                "ACK ref=" + parsed->refId + " state=" + statusName(oit->second.status));
@@ -87,13 +94,22 @@ void Bridge::onIncomingMessage(const std::string& chatId,
     }
 
     // relay_text
+    _adapter.suppressRawRender(serverId);
+    _adapter.suppressRawNotification(serverId);
+    _adapter.suppressRawEdit(serverId);
     if (!_sessions.recordInbound(chatId, parsed->packetId)) {
         Logger::instance().log(LogLevel::Warn, "bridge", "replay packetId=" + parsed->packetId + " ignored");
         return;
     }
     const auto opened = _crypto.open(parsed->body, chatId);
     if (!opened) {
-        Logger::instance().log(LogLevel::Warn, "bridge", "decrypt failed packetId=" + parsed->packetId);
+        Logger::instance().log(LogLevel::Error, "bridge", "decrypt failed packetId=" + parsed->packetId);
+        // Transition to failed so stuck messages never sit in cleanup_pending.
+        InboundMessage im;
+        im.packetId = parsed->packetId;
+        im.status = MessageStatus::failed;
+        im.msgServerId = serverId;
+        _inbound[parsed->packetId] = im;
         return;
     }
 
@@ -103,6 +119,7 @@ void Bridge::onIncomingMessage(const std::string& chatId,
     im.status = MessageStatus::cleanup_pending;
     im.msgServerId = serverId;
     _inbound[parsed->packetId] = im;
+    _adapter.renderVirtualMessage(chatId, VirtualMessage{parsed->packetId, *opened});
     Logger::instance().log(LogLevel::Info, "bridge",
                            "recv chat=" + chatId + " packetId=" + parsed->packetId
                            + " plaintext=" + redactSecret(*opened, Logger::instance().redact()));
