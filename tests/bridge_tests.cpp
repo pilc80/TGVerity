@@ -23,25 +23,29 @@ int main() {
     Bridge aBridge(crypto, alice);
     Bridge bBridge(crypto, bob);
 
+    // -- First message: lifecycle + H3 plaintext wipe --
+    // FakeTelegramClient delivers synchronously, so the full lifecycle
+    // (MSG sent → tg_sent → ACK → cleanup_done) completes before send() returns.
     const auto pid = aBridge.send("chat1", "hello v0.2");
 
-    // Alice's outbound message reached cleanup_done end-to-end.
+    // H3: plaintext is wiped on cleanup_done (never stored in memory after lifecycle).
     const auto* ob = aBridge.outbound(pid);
     assert(ob != nullptr);
-    assert(ob->plaintext == "hello v0.2");
     assert(ob->status == MessageStatus::cleanup_done);
+    assert(ob->plaintext.empty());
 
     // Bob received, decrypted, suppressed raw Telegram UI paths, rendered virtual message, and cleaned.
     assert(bBridge.inboundCount() == 1);
     const auto* im = bBridge.inbound(pid);
     assert(im != nullptr);
-    assert(im->plaintext == "hello v0.2");
     assert(im->status == MessageStatus::cleanup_done);
+    assert(im->plaintext.empty());
     assert(bob.suppressedRenderIds().size() == 1);
     assert(bob.suppressedNotificationIds().size() == 1);
     assert(bob.suppressedEditIds().size() == 1);
     assert(bob.virtualMessages("chat1").size() == 1);
     assert(bob.virtualMessages("chat1").front().packetId == pid);
+    // bob.renderVirtualMessage stores plaintext for display (debug output) before cleanup.
     assert(bob.virtualMessages("chat1").front().plaintext == "hello v0.2");
 
     // Unsafe packet-send options are rejected by the fake adapter contract test double.
@@ -56,12 +60,19 @@ int main() {
     bob.receiveFromWire("chat1", "srv-replay", replayWire);
     assert(bBridge.inboundCount() == 1);
 
-    // A second distinct message gets a new packet id and is received.
+    // -- Second message: new packet id, also wiped on cleanup_done --
     const auto pid2 = aBridge.send("chat1", "second");
     assert(pid2 != pid);
+
     assert(bBridge.inboundCount() == 2);
-    assert(bBridge.inbound(pid2) != nullptr);
-    assert(bBridge.inbound(pid2)->plaintext == "second");
+
+    // After cleanup_done: wiped.
+    const auto* ob2 = aBridge.outbound(pid2);
+    assert(ob2 != nullptr);
+    assert(ob2->plaintext.empty());
+    const auto* im2 = bBridge.inbound(pid2);
+    assert(im2 != nullptr);
+    assert(im2->plaintext.empty());
 
     std::cout << "bridge_tests passed\n";
     return 0;

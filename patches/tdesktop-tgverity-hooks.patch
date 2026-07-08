@@ -1,0 +1,144 @@
+diff --git a/Telegram/CMakeLists.txt b/Telegram/CMakeLists.txt
+index ef6d3ed..64537b7 100644
+--- a/Telegram/CMakeLists.txt
++++ b/Telegram/CMakeLists.txt
+@@ -2003,6 +2003,13 @@ else()
+     )
+ endif()
+ 
++	# TGVerity shim: standalone codec, zero deps for in-tree builds.
++	nice_target_sources(Telegram ${src_loc}
++	PRIVATE
++		tgverity/tgverity_bridge_shim.cpp
++		tgverity/tgverity_bridge_shim.h
++	)
++
+ if (NOT build_winstore)
+     remove_target_sources(Telegram ${src_loc}
+         platform/win/windows_start_task.cpp
+diff --git a/Telegram/SourceFiles/api/api_updates.cpp b/Telegram/SourceFiles/api/api_updates.cpp
+index e557ee9..cfe69af 100644
+--- a/Telegram/SourceFiles/api/api_updates.cpp
++++ b/Telegram/SourceFiles/api/api_updates.cpp
+@@ -1299,6 +1299,18 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
+ 
+ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
+ 	switch (update.type()) {
++	case mtpc_updateNewMessage: {
++		// TGVHOOK v0.2: incoming — intercept before core processing
++		if (auto *item = _session->data().tryGetMessage(
++				update.c_updateNewMessage().c_message().vmessage().id())) {
++			auto text = item->text().toStdString();
++			if (tgv_shim::isTgVerityPacket(text)) {
++				// Suppressed by skipNotification + renderVirtualMessage path
++				// actual decryption handled by adapter layer (F2)
++			}
++		}
++		// F2: parse body, authenticate via core, render virtual message
++	} break;
+ 	case mtpc_updateNewMessage: {
+ 		auto &d = update.c_updateNewMessage();
+ 		auto needToAdd = true;
+diff --git a/Telegram/SourceFiles/apiwrap.cpp b/Telegram/SourceFiles/apiwrap.cpp
+index 857f864..6ed4a26 100644
+--- a/Telegram/SourceFiles/apiwrap.cpp
++++ b/Telegram/SourceFiles/apiwrap.cpp
+@@ -4507,6 +4507,33 @@ void ApiWrap::sendRichMessage(
+ void ApiWrap::sendMessage(
+ 		MessageToSend &&message,
+ 		std::optional<MsgId> localMessageId) {
++	// TGVHOOK v0.2: send-wrap — intercept before Telegram send
++	{
++		static std::atomic<uint64> _tgvCounter{0};
++		auto &session = _session;
++		auto isTgverityEnabled = [&]() -> bool {
++			// Debug toggle: global flag for testing.
++			// TODO: per-chat TGVerity mode (handshake state)
++			return false; // set true to activate send-wrap
++		};
++		if (isTgverityEnabled()) {
++			auto wire = tgv_shim::buildRelayText(
++				message.textWithTags.text.toStdString(),
++				_tgvCounter.fetch_add(1, std::memory_order_relaxed));
++			if (wire.size() <= 4096) {
++				message.textWithTags.text = QString::fromStdString(wire);
++				message.textWithTags.tags = QString();
++			}
++			// else: oversized, fall through to normal send (log warn)
++		}
++	}
++	// F1: wire packet count per session, not global
++	// F2: check per-chat TGVerity mode before conversion
++	// TODO: remove atomic counter, use session-local state machine
++	// TGVHOOK v0.2: send-wrap — wire packet counter per session
++	// Packet counter increments per send; bound by session store (C1)
++	// F2: replace atomic with session-local counter from state machine
++
+ 	const auto history = message.action.history;
+ 	const auto peer = history->peer;
+ 	auto &textWithTags = message.textWithTags;
+diff --git a/Telegram/SourceFiles/data/data_histories.cpp b/Telegram/SourceFiles/data/data_histories.cpp
+index 7968fbc..6395884 100644
+--- a/Telegram/SourceFiles/data/data_histories.cpp
++++ b/Telegram/SourceFiles/data/data_histories.cpp
+@@ -775,6 +775,17 @@ void Histories::deleteMessages(
+ 		not_null<History*> history,
+ 		const QVector<MTPint> &ids,
+ 		bool revoke) {
++	// TGVHOOK v0.2: delete-revoke — policy guard before Telegram delete
++	{
++		// F1: collect TGVerity server IDs from session store
++		// F2: batch revoke (<=100), never self-then-revoke
++		// Adapter::deleteMessagesRevoke(chatId, serverIds)
++		// No op in MVP — just mark for cleanup tracking
++	}
++	// TODO: integrate with bridge cleanup lifecycle
++	// TODO: retry failed revoke calls
++	// TODO: track cleanup status in state machine
++
+ 	sendRequest(history, RequestType::Delete, [=](Fn<void()> finish) {
+ 		const auto done = [=](const MTPmessages_AffectedMessages &result) {
+ 			session().api().applyAffectedMessages(history->peer, result);
+diff --git a/Telegram/SourceFiles/history/history_item.cpp b/Telegram/SourceFiles/history/history_item.cpp
+index 303a04a..01425a0 100644
+--- a/Telegram/SourceFiles/history/history_item.cpp
++++ b/Telegram/SourceFiles/history/history_item.cpp
+@@ -2105,6 +2105,17 @@ bool HistoryItem::canLookupMessageAuthor() const {
+ }
+ 
+ bool HistoryItem::skipNotification() const {
++	// TGVHOOK v0.2: notif suppress — block notification for TGVerity packets
++	{
++		auto textStr = text().toStdString();
++		if (tgv_shim::isTgVerityPacket(textStr)) {
++			// Raw packet never notifies; adapter emits virtual notification
++			return true;
++		}
++	}
++	// TODO: suppress only for TGVerity-authenticated packets
++	// TODO: race condition between notification emission and decrypt
++
+ 	if (isSilent() && (_flags & MessageFlag::IsContactSignUp)) {
+ 		return true;
+ 	} else if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+diff --git a/Telegram/SourceFiles/history/view/history_view_context_menu.cpp b/Telegram/SourceFiles/history/view/history_view_context_menu.cpp
+index 41eb7de..279b828 100644
+--- a/Telegram/SourceFiles/history/view/history_view_context_menu.cpp
++++ b/Telegram/SourceFiles/history/view/history_view_context_menu.cpp
+@@ -120,6 +120,16 @@ constexpr auto kPublicPostLinkToastDuration = 4 * crl::time(1000);
+ bool HasEditMessageAction(
+ 		const ContextMenuRequest &request,
+ 		not_null<ListWidget*> list) {
++	// TGVHOOK v0.2: edit suppress — TGVerity messages immutable
++	{
++		auto textStr = request.item->text().toStdString();
++		if (tgv_shim::isTgVerityPacket(textStr)) {
++			return false;
++		}
++	}
++	// TODO: check via adapter, not raw text scan
++	// TODO: also hide copy/forward for TGVerity packets
++
+ 	const auto item = request.item;
+ 	const auto context = list->elementContext();
+ 	if (!item
