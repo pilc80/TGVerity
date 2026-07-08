@@ -12,6 +12,7 @@
 #include <iostream>
 #include <optional>
 #include <string>
+#include <thread>
 
 namespace {
 
@@ -31,7 +32,10 @@ void usage() {
               << "  p2p-listen <port>              Accept one framed P2P message\n"
               << "  p2p-connect <host:port> <text> Send one framed P2P message\n"
               << "  selftest                       End-to-end bridge demo via FakeTelegramClient + logging\n"
-              "  selftest-shim                  Standalone shim self-test (no core link)\n";
+              "  selftest-shim                  Standalone shim self-test (no core link)\n"
+              "  tg-bridge-send <chat> <text>   Send TGVerity packet via Bridge + TDLib\n"
+              "  tg-bridge-wait [timeout_s]     Wait for Bridge events (ACK, incoming)\n"
+              "  tg-bridge                      Start Bridge event loop (send + recv + watch)\n";
 }
 
 std::optional<std::int64_t> parseChatId(const char* value) {
@@ -216,6 +220,62 @@ int main(int argc, char** argv) {
         std::cout << "bob inbound plaintext=" << (im ? im->plaintext : std::string("null")) << "\n";
         std::cout << "selftest OK\n";
         return 0;
+    }
+
+    // tg-bridge-send: send a TGVerity packet via Bridge + real TDLib.
+    if (command == "tg-bridge-send") {
+        if (argc < 4) {
+            std::cerr << "tg-bridge-send requires <chat> <text>\n";
+            return 2;
+        }
+        const auto chatId = parseChatId(argv[2]);
+        if (!chatId) {
+            std::cerr << "invalid chat id\n";
+            return 2;
+        }
+
+        tgverity::Logger::instance().setLevel(tgverity::LogLevel::Debug);
+
+        // 1. Create Bridge + TdlibTelegramClient.
+        tgverity::IdentityCryptoProvider crypto;
+        tgverity::TdlibTelegramClient tdlibClient;
+        tgverity::Bridge bridge(crypto, tdlibClient);
+
+        // 2. Authenticate (interactive).
+        auto config = tgverity::AppConfig::fromEnvironmentOrPrompt();
+        if (!config.hasTelegramCredentials()) {
+            std::cerr << "Set TGVERITY_API_ID and TGVERITY_API_HASH.\n";
+            return 2;
+        }
+        if (const auto rc = tdlibClient.authenticate(config); rc != 0) return rc;
+        std::cout << "Auth OK. Sending...\n";
+
+        // 3. Send through bridge.
+        std::cout << "Sending TGVerity packet to chat=" << *chatId << " text=\"" << argv[3] << "\"\n";
+        const auto packetId = bridge.send(std::to_string(*chatId), argv[3]);
+        std::cout << "Packet sent, id=" << packetId << "\n";
+
+        // 4. Wait for events: message send confirmed, ACK, cleanup.
+        //    The background receive loop fires callbacks into the Bridge.
+        //    We poll bridge state until cleanup_done or timeout.
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+        while (std::chrono::steady_clock::now() < deadline) {
+            const auto* ob = bridge.outbound(packetId);
+            if (ob) {
+                std::cout << "Status: " << tgverity::statusName(ob->status) << "\n";
+                if (ob->status == tgverity::MessageStatus::cleanup_done) {
+                    std::cout << "Message fully cleaned up.\n";
+                    return 0;
+                }
+                if (ob->status == tgverity::MessageStatus::failed) {
+                    std::cerr << "Message send failed.\n";
+                    return 1;
+                }
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+        std::cerr << "Timed out.\n";
+        return 1;
     }
 
     usage();

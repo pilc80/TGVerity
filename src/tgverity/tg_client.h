@@ -1,5 +1,8 @@
 #pragma once
 
+#include "app/config.h"
+
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -71,9 +74,18 @@ private:
     AdapterListener* _listener = nullptr;
 };
 
-// Placeholder until real TDLib wiring lands. Throws on use.
+// TDLib-backed adapter with authentication.
 class TdlibTelegramClient final : public TelegramAdapter {
 public:
+    struct Impl;
+    TdlibTelegramClient();
+    ~TdlibTelegramClient();
+    TdlibTelegramClient(const TdlibTelegramClient&) = delete;
+    TdlibTelegramClient& operator=(const TdlibTelegramClient&) = delete;
+
+    int authenticate();
+    int authenticate(const AppConfig& config);
+
     std::string sendPacketText(const std::string& chatId, const std::string& correlationId,
                                const std::string& packetText,
                                PacketSendOptions options = {}) override;
@@ -82,9 +94,9 @@ public:
     void suppressRawNotification(const std::string& serverId) override;
     void suppressRawEdit(const std::string& serverId) override;
     void renderVirtualMessage(const std::string& chatId, const VirtualMessage& message) override;
-    void setListener(AdapterListener* listener) override { _listener = listener; }
+    void setListener(AdapterListener* listener) override;
 private:
-    AdapterListener* _listener = nullptr;
+    std::unique_ptr<Impl> _impl;
 };
 
 } // namespace tgverity
